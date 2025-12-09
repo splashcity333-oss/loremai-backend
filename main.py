@@ -48,11 +48,17 @@ app = FastAPI()
 # ✅ REQUIRED FOR CODEPEN + PRODUCTION
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows CodePen + production websites
-    allow_credentials=True,
+    allow_origins=[
+        "https://cdpn.io",
+        "https://codepen.io",
+        "http://localhost",
+        "http://127.0.0.1"
+    ],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # ✅ Health check
 @app.get("/")
