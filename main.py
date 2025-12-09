@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
@@ -49,26 +49,35 @@ load_dotenv()
 
 app = FastAPI()
 
-# ✅ Standard CORS (kept for completeness)
+# ✅ SAFE PRODUCTION CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://cdpn.io",
-        "https://codepen.io",
-        "http://localhost",
-        "http://127.0.0.1"
-    ],
+    allow_origins=["*"],   # hard allow for CodePen + prod
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ✅ Health check
+# ✅ HEALTH CHECK
 @app.get("/")
 def root():
     return {"status": "LoremAI backend live"}
 
-# ✅ REAL THERAPY CHAT ENDPOINT — HARD CORS OVERRIDE
+
+# ✅ ✅ ✅ HARD PREFLIGHT FIX (THIS WAS YOUR CORS BLOCKER)
+@app.options("/chat")
+async def chat_preflight(request: Request):
+    return JSONResponse(
+        content={"ok": True},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+    )
+
+
+# ✅ ✅ ✅ REAL CHAT ENDPOINT (SYNC OPENAI CALL)
 @app.post("/chat")
 async def chat_endpoint(payload: ChatRequest):
 
@@ -83,8 +92,7 @@ async def chat_endpoint(payload: ChatRequest):
     }
 
     try:
-       ai_reply = send_to_therapy_ai(prompt_payload)
-
+        ai_reply = send_to_therapy_ai(prompt_payload)
 
         return JSONResponse(
             content={"reply": ai_reply},
@@ -108,11 +116,13 @@ async def chat_endpoint(payload: ChatRequest):
             }
         )
 
+
 # ✅ Mood tracking
 @app.post("/mood")
 async def mood_endpoint(entry: MoodEntry):
     await save_mood(entry.model_dump())
     return {"status": "Mood saved"}
+
 
 # ✅ Addiction tracking
 @app.post("/addiction")
@@ -120,10 +130,12 @@ async def addiction_endpoint(event: AddictionEvent):
     await save_addiction(event.model_dump())
     return {"status": "Addiction event saved"}
 
+
 # ✅ Crisis logging
 @app.post("/crisis")
 async def crisis_endpoint(event: CrisisEvent):
     await log_crisis(event.model_dump())
     return {"status": "Crisis logged"}
+
 
 # force redeploy
