@@ -107,3 +107,4 @@ async def addiction_endpoint(event: AddictionEvent):
 async def crisis_endpoint(event: CrisisEvent):
     await log_crisis(event.model_dump())
     return {"status": "Crisis logged"}
+# force redeploy
