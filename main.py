@@ -1,3 +1,13 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from dotenv import load_dotenv
+
+from models.schemas import ChatRequest, MoodEntry, AddictionEvent, CrisisEvent
+from services.openai_service import send_to_therapy_ai
+from services.supabase_service import save_mood, save_addiction, log_crisis
+
+
 THERAPY_SYSTEM_PROMPT = """
 You are LoremAI — an elite, world-class therapeutic intelligence.
 
@@ -32,20 +42,14 @@ Danger / crisis:
   - Encourage emergency services and crisis hotlines
   - Emphasize safety above all else
 """
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 
-from models.schemas import ChatRequest, MoodEntry, AddictionEvent, CrisisEvent
-from services.openai_service import send_to_therapy_ai
-from services.supabase_service import save_mood, save_addiction, log_crisis
 
 # ✅ Load environment variables
 load_dotenv()
 
 app = FastAPI()
 
-# ✅ REQUIRED FOR CODEPEN + PRODUCTION
+# ✅ Standard CORS (kept for completeness)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -59,36 +63,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # ✅ Health check
 @app.get("/")
 def root():
     return {"status": "LoremAI backend live"}
 
-# ✅ REAL THERAPY CHAT ENDPOINT (NOT ECHO)
+# ✅ REAL THERAPY CHAT ENDPOINT — HARD CORS OVERRIDE
 @app.post("/chat")
 async def chat_endpoint(payload: ChatRequest):
 
     prompt_payload = {
-       "system": THERAPY_SYSTEM_PROMPT,
+        "system": THERAPY_SYSTEM_PROMPT,
         "userMessage": payload.user_message,
         "mode": payload.mode,
         "mood": payload.mood,
         "addiction": payload.addiction_streak,
-        "memory": payload.memory,
         "goal": payload.session_goal,
         "history": payload.history,
     }
 
     try:
         ai_reply = await send_to_therapy_ai(prompt_payload)
-        return {"reply": ai_reply}
+
+        return JSONResponse(
+            content={"reply": ai_reply},
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Methods": "*"
+            }
+        )
 
     except Exception as e:
-        return {
-            "reply": "⚠️ The therapy system is temporarily unavailable. Please try again shortly.",
-            "error": str(e)
-        }
+        return JSONResponse(
+            content={
+                "reply": "⚠️ The therapy system is temporarily unavailable. Please try again shortly.",
+                "error": str(e)
+            },
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Methods": "*"
+            }
+        )
 
 # ✅ Mood tracking
 @app.post("/mood")
@@ -107,4 +124,5 @@ async def addiction_endpoint(event: AddictionEvent):
 async def crisis_endpoint(event: CrisisEvent):
     await log_crisis(event.model_dump())
     return {"status": "Crisis logged"}
+
 # force redeploy
