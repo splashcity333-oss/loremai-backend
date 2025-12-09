@@ -83,7 +83,8 @@ async def chat_endpoint(payload: ChatRequest):
     }
 
     try:
-        ai_reply = await send_to_therapy_ai(prompt_payload)
+       ai_reply = send_to_therapy_ai(prompt_payload)
+
 
         return JSONResponse(
             content={"reply": ai_reply},
